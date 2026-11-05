@@ -1,0 +1,55 @@
+binds {
+    Mod+A hotkey-overlay-title="Application Launcher" {
+        spawn-sh "noctalia msg panel-toggle launcher";
+    }
+
+    Mod+P hotkey-overlay-title="Clipboard Manager" {
+        spawn-sh "noctalia msg panel-toggle clipboard";
+    }
+
+    Ctrl+Shift+Escape hotkey-overlay-title="Task Manager" {
+        spawn-sh "flatpak run io.missioncenter.MissionCenter";
+    }
+
+    Mod+Comma hotkey-overlay-title="Settings" {
+        spawn-sh "noctalia msg settings-open";
+    }
+
+    Mod+Y hotkey-overlay-title="Control Center" {
+        spawn-sh "noctalia msg panel-toggle control-center";
+    }
+
+    Mod+Ctrl+W hotkey-overlay-title="Wallpapers" {
+        spawn-sh "noctalia msg panel-toggle wallpaper";
+    }
+
+    Mod+Shift+N hotkey-overlay-title="Notes" {
+        spawn-sh "noctalia msg panel-toggle noctalia/notes:panel";
+    }
+
+    Mod+Alt+L hotkey-overlay-title="Lock Screen" {
+        spawn-sh "noctalia msg session lock";
+    }
+
+    // Audio
+    XF86AudioRaiseVolume allow-when-locked=true {
+      spawn-sh "noctalia msg volume-up";
+    }
+    XF86AudioLowerVolume allow-when-locked=true {
+        spawn-sh "noctalia msg volume-down";
+    }
+    XF86AudioMute allow-when-locked=true {
+        spawn-sh "noctalia msg volume-mute";
+    }
+    XF86AudioMicMute allow-when-locked=true {
+        spawn-sh "noctalia msg mic-mute";
+    }
+
+    // Brightness
+    XF86MonBrightnessUp allow-when-locked=true {
+        spawn-sh "noctalia msg brightness-up";
+    }
+    XF86MonBrightnessDown allow-when-locked=true {
+        spawn-sh "noctalia msg brightness-down";
+    }
+}

@@ -1,0 +1,110 @@
+// Ask the clients to omit their client-side decorations if possible.
+// This option will also fix border/focus ring drawing behind some semitransparent windows.
+// After enabling or disabling this, you need to restart the apps for this to take effect.
+prefer-no-csd
+
+blur {
+    passes 3
+    offset 8.0
+    noise 0.03
+    saturation 1.5
+}
+
+layer-rule {
+    match namespace="dms:blurwallpaper"
+    match namespace="^noctalia-backdrop"
+    place-within-backdrop true
+}
+
+layer-rule {
+    exclude namespace="^dms:bar$"
+    match namespace="^noctalia-(bar-[^\"]+|notification|dock|panel|attached-panel|osd|window-switcher)$"
+    background-effect {
+        xray false
+    }
+}
+
+window-rule {
+    geometry-corner-radius 16//12//0
+    draw-border-with-background false
+    clip-to-geometry true
+    background-effect {
+        blur true
+        xray false
+    }
+}
+
+window-rule {
+    match is-window-cast-target=true
+    border {
+        width 4
+        active-color "#f38ba8"
+        inactive-color "#7d0d2d"
+    }
+}
+
+window-rule {
+    match app-id="dev.noctalia.Noctalia"
+    match app-id="org.gnome.seahorse.Application"
+    open-floating true
+    default-column-width { fixed 1080; }
+    default-window-height { fixed 920; }
+    background-effect {
+        xray true
+    }
+}
+
+window-rule {
+    match app-id=r#"firefox$"#
+    match app-id=r#"zen$"#
+    match app-id="org.kde.dolphin"
+    match app-id="com.obsproject.Studio"
+    match app-id="com.heroicgameslauncher.hgl"
+    match app-id="vesktop"
+    match app-id="neovide"
+    match app-id="org.wezfurlong.wezterm"
+    match app-id="com.mitchellh.ghostty"
+    match app-id="jetbrains"
+    match app-id="io.missioncenter.MissionCenter"
+    match app-id="org.jellyfin.JellyfinDesktop"
+    open-maximized true
+}
+
+window-rule {
+    match app-id=r#"firefox$"# title="^Picture-in-Picture$"
+    match app-id=r#"zen$"# title="^Picture-in-Picture$"
+    open-focused false
+    open-floating true
+
+    default-floating-position x=30 y=30 relative-to="top-right"
+    default-column-width { fixed 304; }
+    default-window-height { fixed 171; }
+}
+
+
+window-rule {
+    match app-id="io.github.szymonwilczek.carmenta"
+    open-focused true
+    open-floating true
+
+    default-floating-position x=30 y=30 relative-to="bottom-right"
+    default-column-width { fixed 171; }
+    default-window-height { fixed 171; }
+}
+
+window-rule {
+    match app-id="Emulator"
+    open-floating false
+    open-focused false
+    geometry-corner-radius 0
+    default-column-width {}
+    default-window-height {}
+}
+
+window-rule {
+    match app-id=r#"^org\.keepassxc\.KeePassXC$"#
+    match app-id=r#"^org\.gnome\.World\.Secrets$"#
+    // block-out-from "screen-capture"
+    block-out-from "screencast"
+}
+

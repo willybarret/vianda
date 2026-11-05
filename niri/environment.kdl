@@ -1,0 +1,35 @@
+hotkey-overlay {
+    skip-at-startup
+}
+
+debug {
+    // render-drm-device "/dev/dri/renderD128"
+
+    // Allows notification actions and window activation from Noctalia.
+    honor-xdg-activation-with-invalid-serial
+}
+
+environment {
+    XDG_CURRENT_DESKTOP "niri"
+    // ELECTRON_OZONE_PLATFORM_HINT "auto"
+
+    GTK_IM_MODULE "ibus"
+    QT_IM_MODULE "ibus"
+    XMODIFIERS "@im=ibus"
+}
+
+
+// Path formatted with strftime(3).
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+// spawn-at-startup "/usr/libexec/polkit-mate-authentication-agent-1"
+// spawn-at-startup "awww-daemon"
+// spawn-at-startup "awww img ~/Pictures/Wallpapers/wallpaper.png"
+// spawn-at-startup "seahorse"
+spawn-at-startup "noctalia"
+spawn-at-startup "kdeconnectd"
+
+cursor {
+    xcursor-theme "Bibata-Modern-Classic"
+    xcursor-size 24
+}

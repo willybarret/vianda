@@ -1,0 +1,27 @@
+output "sunshine" {
+    create-virtual
+    mode "1920x1080@60.000" // FHD
+    // scale 1.25
+
+    // mode "2560x1440@60.000" // QHD
+    // scale 1.47
+
+    // mode "3200x1800@60.000"
+    // scale 1.75
+    // scale 2.0
+
+    // mode "3840x2160@60.000" // 4K
+    // scale 2.25
+}
+
+output "HDMI-A-1" {
+    mode "1920x1080@239.760"
+}
+
+output "HDMI-A-2" {
+    mode "1920x1080@239.760"
+}
+
+output "HDMI-A-3" {
+    mode "1920x1080@239.760"
+}

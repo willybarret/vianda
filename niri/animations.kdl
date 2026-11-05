@@ -1,0 +1,166 @@
+animations {
+    /***************************************************************************
+    * System animations
+    ***************************************************************************/
+    exit-confirmation-open-close {
+        spring damping-ratio=1.0 stiffness=1400 epsilon=0.01
+    }
+    screenshot-ui-open {
+        spring damping-ratio=1.0 stiffness=1400 epsilon=0.001
+    }
+    recent-windows-close {
+        spring damping-ratio=1.0 stiffness=1400 epsilon=0.001
+    }
+    config-notification-open-close {
+        spring damping-ratio=1.0 stiffness=1400 epsilon=0.001
+    }
+
+
+    /***************************************************************************
+    * Workspaces
+    ***************************************************************************/
+    overview-open-close {
+        // spring damping-ratio=1.0 stiffness=1400 epsilon=0.0001
+        spring damping-ratio=1.0 stiffness=700 epsilon=0.0001
+    }
+    workspace-switch {
+        // spring damping-ratio=1.0 stiffness=1600 epsilon=0.0001
+        spring damping-ratio=0.8 stiffness=400 epsilon=0.0001
+    }
+    horizontal-view-movement {
+        // spring damping-ratio=1.0 stiffness=1400 epsilon=0.0001
+        spring damping-ratio=0.8 stiffness=350 epsilon=0.0001
+    }
+
+
+    /***************************************************************************
+    * Windows
+    ***************************************************************************/
+    window-movement {
+        // spring damping-ratio=1.0 stiffness=1400 epsilon=0.0001
+        spring damping-ratio=0.8 stiffness=350 epsilon=0.0001
+        // spring damping-ratio=0.8 stiffness=1600 epsilon=0.0001
+    }
+
+    window-resize {
+      spring damping-ratio=0.8 stiffness=350 epsilon=0.0001
+    }
+
+    window-open {
+        duration-ms 250
+        curve "ease-out-quad"
+
+        custom-shader r"
+            float hash(vec2 p) {
+                return fract(21654.65155 * sin(35.51 * p.x + 45.51 * p.y));
+            }
+
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                return mix(
+                    mix(hash(i),                  hash(i + vec2(1.0, 0.0)), f.x),
+                    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+                    f.y
+                );
+            }
+
+            float fbm(vec2 p) {
+                float v = 0.0, f = 1.0, a = 0.5;
+                for (int i = 0; i < 4; i++) {
+                    v += noise(p * f) * a;
+                    f *= 2.1;
+                    a *= 0.5;
+                }
+                return v;
+            }
+
+            vec4 open_color(vec3 coords_geo, vec3 size_geo) {
+                vec2 uv = coords_geo.xy;
+                float p = niri_clamped_progress;
+                float inv = 1.0 - p;
+
+                vec2 distort_uv = uv;
+                // distort_uv.y += inv * 0.06;
+
+                float noise_val = fbm(uv * 5.5 + vec2(0.0, -inv * 1.5));
+                distort_uv += (noise_val - 0.5) * inv * 0.25;
+
+                // Pass directly — no clamping
+                vec3 coords_tex = niri_geo_to_tex * vec3(distort_uv, 1.0);
+                vec4 color = texture2D(niri_tex, coords_tex.st);
+
+                float threshold = inv * 1.1;
+                float erosion = smoothstep(threshold - 0.1, threshold + 0.15, noise_val);
+
+                float alpha = erosion * min(p * 1.15, 1.0);
+                return color * alpha;
+            }
+        "
+    }
+
+    window-close {
+        duration-ms 500
+        curve "ease-out-quad"
+
+        custom-shader r"
+            float hash(vec2 p) {
+                return fract(21654.65155 * sin(35.51 * p.x + 45.51 * p.y));
+            }
+
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                return mix(
+                    mix(hash(i),               hash(i + vec2(1.0, 0.0)), f.x),
+                    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+                    f.y
+                );
+            }
+
+            float fbm(vec2 p) {
+                float v = 0.0, f = 1.0, a = 0.5;
+                for (int i = 0; i < 4; i++) {
+                    v += noise(p * f) * a;
+                    f *= 2.1;
+                    a *= 0.5;
+                }
+                return v;
+            }
+
+            vec4 close_color(vec3 coords_geo, vec3 size_geo) {
+                vec2 uv = coords_geo.xy;
+                float p = niri_clamped_progress;
+
+                // Window gently drifts upward as it dissolves
+                vec2 distort_uv = uv;
+                distort_uv.y -= p * 0.05;
+
+                float noise_val = fbm(uv * 5.5 + vec2(0.0, -p * 1.5));
+                distort_uv += (noise_val - 0.5) * p * 0.25;
+
+                vec3 coords_tex = niri_geo_to_tex * vec3(distort_uv, 1.0);
+                vec4 color = texture2D(niri_tex, coords_tex.st);
+
+                // Softer, wider erosion sweep
+                float threshold = p * 1.2;
+                float erosion = smoothstep(threshold - 0.08, threshold + 0.12, noise_val);
+
+                // Soft border
+                float edge = smoothstep(0.0, 0.04, uv.x) * smoothstep(1.0, 0.96, uv.x)
+                           * smoothstep(0.0, 0.04, uv.y) * smoothstep(1.0, 0.96, uv.y);
+
+                // Gentle desaturation instead of darkening to black
+                float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                color.rgb = mix(color.rgb, vec3(gray), p * 0.5);
+
+                // Smooth cubic alpha decay
+                float inv = 1.0 - p;
+                float alpha = erosion * edge * (inv * inv * (3.0 - 2.0 * inv));
+                return color * alpha;
+            }
+        "
+    }
+}

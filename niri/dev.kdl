@@ -1,0 +1,22 @@
+// Just for development:
+window-rule {
+    match title=r#"Shelvia$"#
+    open-focused true
+    open-floating false
+    // default-column-width { proportion 0.66667; }
+    // default-window-height { proportion 0.66667; }
+    // default-column-width { fixed 1280; }
+    // default-window-height { fixed 720; }
+    // default-column-width { fixed 800; }
+    // default-window-height { fixed 600; }
+    // open-on-output "HDMI-A-1"
+}
+
+// workspace "wine-sni-bridge"
+// window-rule {
+//     match app-id="wine-sni-bridge"
+//     match app-id="steam_proton" title="^$"
+//     open-on-workspace "wine-sni-bridge"
+//     open-floating false
+//     open-focused false
+// }

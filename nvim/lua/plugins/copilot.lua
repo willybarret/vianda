@@ -1,0 +1,46 @@
+return {}
+
+-- return {
+--   -- {
+--   --   "zbirenbaum/copilot.lua",
+--   --   optional = true,
+--   --   opts = function()
+--   --     require("copilot.api").status = require("copilot.status")
+--   --   end,
+--   -- },
+--   --
+--   {
+--     "giuxtaposition/blink-cmp-copilot",
+--     enabled = false,
+--   },
+--
+--   {
+--     "saghen/blink.cmp",
+--     optional = true,
+--     dependencies = {
+--       "fang2hou/blink-copilot",
+--       opts = {
+--         max_completions = 3, -- Global default for max completions
+--         max_attempts = 2, -- Global default for max attempts
+--         debounce = 200, ---@type integer | false
+--         auto_refresh = {
+--           backward = true,
+--           forward = true,
+--         },
+--       },
+--     },
+--     opts = {
+--       sources = {
+--         default = { "copilot" },
+--         providers = {
+--           copilot = {
+--             name = "copilot",
+--             module = "blink-copilot",
+--             score_offset = 100,
+--             async = true,
+--           },
+--         },
+--       },
+--     },
+--   },
+-- }

@@ -1,0 +1,9 @@
+include "environment.kdl"
+include "input.kdl"
+include "outputs.kdl"
+include "binds.kdl"
+layout { border; }
+include "layout.kdl"
+include "rules.kdl"
+include "animations.kdl"
+include "dev.kdl"
