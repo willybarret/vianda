@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+
+import argparse
+import fcntl
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from contextlib import contextmanager
+from pathlib import Path
+
+STATE_HOME = Path(
+    os.environ.get(
+        "XDG_STATE_HOME",
+        str(Path.home() / ".local/state"),
+    )
+)
+STATE_DIR = STATE_HOME / "niri-harpoon"
+STATE_FILE = STATE_DIR / "marks.json"
+LOCK_FILE = STATE_DIR / "lock"
+
+
+def notify(message: str) -> None:
+    """Send a desktop notification, falling back to stderr."""
+    if shutil.which("notify-send"):
+        subprocess.run(
+            ["notify-send", "Niri Harpoon", message],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    else:
+        print(f"niri-harpoon: {message}", file=sys.stderr)
+
+
+def niri(*args: str):
+    """Run niri msg --json and unwrap its IPC response."""
+    try:
+        result = subprocess.run(
+            ["niri", "msg", "--json", *args],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except FileNotFoundError:
+        raise RuntimeError("Could not find the niri executable.")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Niri IPC request timed out.")
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(exc.stderr.strip() or "Niri IPC request failed.")
+
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise RuntimeError(f"Invalid JSON returned by niri: {result.stdout!r}")
+
+    if isinstance(data, dict):
+        if "Err" in data:
+            raise RuntimeError(str(data["Err"]))
+        if "Ok" in data:
+            data = data["Ok"]
+
+    return data
+
+
+def response(command: str, key: str):
+    data = niri(command)
+    if isinstance(data, dict) and key in data:
+        return data[key]
+    return data
+
+
+def focused_window():
+    return response("focused-window", "FocusedWindow")
+
+
+def windows():
+    result = response("windows", "Windows")
+    if not isinstance(result, list):
+        raise TypeError("Unexpected response from niri windows.")
+    return result
+
+
+def session_identity() -> dict:
+    """
+    Identify this Niri socket instance.
+
+    Marks from an older compositor session are rejected, even if
+    an old window ID happens to be reused.
+    """
+    socket = os.environ.get("NIRI_SOCKET")
+    if not socket:
+        raise RuntimeError("NIRI_SOCKET is not set.")
+
+    try:
+        stat = os.stat(socket)
+    except OSError:
+        raise RuntimeError(f"Cannot access Niri socket: {socket}")
+
+    return {"device": stat.st_dev, "inode": stat.st_ino}
+
+
+@contextmanager
+def state_lock():
+    STATE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+    with LOCK_FILE.open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def load_marks() -> dict:
+    if not STATE_FILE.exists():
+        return {}
+
+    try:
+        data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        marks = data["marks"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        raise RuntimeError(f"Cannot read valid state from {STATE_FILE}")
+
+    if not isinstance(marks, dict):
+        raise TypeError("Invalid marks state.")
+
+    return marks
+
+
+def save_marks(marks: dict) -> None:
+    fd, temporary = tempfile.mkstemp(
+        prefix=".marks-",
+        dir=STATE_DIR,
+    )
+    tmp = Path(temporary)
+
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as file:
+            json.dump({"marks": marks}, file, indent=2)
+            file.write("\n")
+
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, STATE_FILE)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def mark(slot: str, marks: dict) -> None:
+    window = focused_window()
+
+    if not isinstance(window, dict):
+        raise TypeError("No focused window.")
+
+    marks[slot] = {
+        "id": window["id"],
+        "app_id": window.get("app_id"),
+        "title": window.get("title", ""),
+        "session": session_identity(),
+    }
+    save_marks(marks)
+
+    notify(f"Marked {slot}: {marks[slot]['title']}")
+
+
+def jump(slot: str, marks: dict) -> None:
+    saved = marks.get(slot)
+
+    if saved is None:
+        raise RuntimeError(f"Slot '{slot}' is empty.")
+
+    if saved.get("session") != session_identity():
+        raise RuntimeError(
+            f"Slot '{slot}' is from another Niri session. Mark the window again."
+        )
+
+    target = next(
+        (
+            window
+            for window in windows()
+            if window.get("id") == saved["id"]
+            and window.get("app_id") == saved.get("app_id")
+        ),
+        None,
+    )
+
+    if target is None:
+        raise RuntimeError(
+            f"Window for '{slot}' no longer exists. Mark the window again."
+        )
+
+    try:
+        subprocess.run(
+            [
+                "niri",
+                "msg",
+                "action",
+                "focus-window",
+                "--id",
+                str(target["id"]),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Focusing the window timed out.")
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(exc.stderr.strip() or "Could not focus the window.")
+
+    # notify(f"Focused {slot}: {target.get('title', '')}")
+
+
+def slot_number(value: str) -> str:
+    if value not in {str(n) for n in range(1, 10)}:
+        raise argparse.ArgumentTypeError("slot must be a number from 1 to 9")
+    return value
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="niri-harpoon")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    for command in ("mark", "jump"):
+        sub = commands.add_parser(command)
+        sub.add_argument("slot", type=slot_number)
+
+    unmark_parser = commands.add_parser("unmark")
+    unmark_parser.add_argument(
+        "slot", type=slot_number, nargs="?", help="Slot number to unmark"
+    )
+    unmark_parser.add_argument(
+        "-a", "--all", action="store_true", help="Clear all marked slots"
+    )
+
+    commands.add_parser("list")
+
+    args = parser.parse_args()
+
+    try:
+        with state_lock():
+            marks = load_marks()
+
+            if args.command == "mark":
+                mark(args.slot, marks)
+
+            elif args.command == "jump":
+                jump(args.slot, marks)
+
+            elif args.command == "unmark":
+                if args.all:
+                    if not marks:
+                        raise RuntimeError("No marks to remove.")
+                    marks.clear()
+                    save_marks(marks)
+                    notify("Cleared all marks")
+
+                elif args.slot is not None:
+                    if args.slot not in marks:
+                        raise RuntimeError(f"Slot '{args.slot}' is empty.")
+                    del marks[args.slot]
+                    save_marks(marks)
+                    notify(f"Removed {args.slot}")
+
+                else:
+                    raise RuntimeError("Please specify a slot or use --all / -a")
+
+            elif args.command == "list":
+                if not marks:
+                    print("No marked windows.")
+                else:
+                    for slot, saved in sorted(marks.items()):
+                        print(
+                            f"{slot:12} "
+                            f"{saved.get('app_id') or '?':20} "
+                            f"{saved.get('title', '')} "
+                            f"[id={saved.get('id')}]"
+                        )
+
+        return 0
+
+    except (RuntimeError, OSError, ValueError, KeyError) as exc:
+        notify(str(exc))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

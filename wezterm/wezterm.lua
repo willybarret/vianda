@@ -7,7 +7,7 @@ local config = wezterm.config_builder()
 
 -- ** Font ******************************************************
 config.adjust_window_size_when_changing_font_size = false
-config.font = wezterm.font("JetBrainsMono Nerd Font", { weight = "Regular" })
+-- config.font = wezterm.font("JetBrainsMono Nerd Font", { weight = "Regular" })
 config.font_size = 14.0
 config.cell_width = 1.0
 config.line_height = 1.0
